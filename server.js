@@ -7,12 +7,14 @@ import flash from 'express-flash';
 import session from 'express-session';
 import initializePassport from './passport-config.js';
 
+
+// Converts environment variables to string if in development stage
 if(process.env.NODE_ENV !== 'production'){
     config();
 }
 
 
-
+// Express Stuff
 const app = express();
 const port = process.env.PORT;
 
@@ -21,9 +23,9 @@ const port = process.env.PORT;
 
 // MiddleWares
 app.use(express.json());
-app.set('view-engine', 'ejs');
-app.use(urlencoded({extended: false}));
-app.use(flash());
+app.set('view-engine', 'ejs');              // For setting up view engine
+app.use(urlencoded({extended: false}));     // For using req.body
+app.use(flash());                           // For error reporting
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
@@ -35,6 +37,7 @@ app.use(passport.session());
 app.use(methodOverride('_method'));
 
 
+// Initializing the passport for authentication
 initializePassport(
     passport, 
     email => users.find(user => user.email === email),
@@ -42,20 +45,23 @@ initializePassport(
 );
     
 
-
+// Array which stores the user upon registration
 const users = [];
     
-    
+
+// Index Route
 app.get('/', checkAuthenticated, (req, res) => {
     res.render('index.ejs', {name: req.user.name});
 });
 
 
+// Renders view for login route
 app.get('/login', checkNotAuthenticated, (req, res) => {
     res.render('login.ejs');
 });
 
 
+// Login route for handling authentication
 app.post('/login', checkNotAuthenticated, passport.authenticate('local', {
     successRedirect: '/',
     failureRedirect: '/login',
@@ -63,27 +69,36 @@ app.post('/login', checkNotAuthenticated, passport.authenticate('local', {
 }));
 
 
+// Renders view for register
 app.get('/register', checkNotAuthenticated, (req, res) => {
     res.render('register.ejs');
 });
 
 
+
+
+// Register route for saving the user in users array
 app.post('/register', checkNotAuthenticated, async (req, res) => {
     try{
-        
+        // Obtaining credentials from the request body
         const {name, email, password} = req.body;
+
+
+        // Password Encryption
         const hashedPassword = await hash(password, 10);
         
+        // Adding the user to DB (Here, User Array)
         users.push({
             id: Date.now().toString(),
             name,
             email,
             hashedPassword
-        })
-        console.log(users);
+        });
+
         res.redirect('/login');
 
     } catch {
+
         res.redirect('/register');
     }
 
@@ -91,13 +106,18 @@ app.post('/register', checkNotAuthenticated, async (req, res) => {
 
 
 
+
+
+// Logout Route
 app.delete('/logout', (req, res) => {
-    req.logOut();
+    req.logOut();   
     res.redirect('/login');
-})
+});
 
 
 
+
+// checks if user is authenticated -> if returned true then only gives access to other routes of application 
 function checkAuthenticated(req, res, next){
     if(req.isAuthenticated()){
         return next();
@@ -107,6 +127,9 @@ function checkAuthenticated(req, res, next){
 }
 
 
+
+
+// If the user is already authenticated then does not let the user login again
 function checkNotAuthenticated(req, res, next){
     if(req.isAuthenticated()){
         return res.redirect('/');
@@ -116,6 +139,8 @@ function checkNotAuthenticated(req, res, next){
 
 
 
+
+// Application listening at the specified port
 app.listen(port, () => {
     console.log(`App running successfully at http://localhost:${port}`);
-})
+});
